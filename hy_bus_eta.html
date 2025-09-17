@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>個人化巴士儀表板 (最終修正版)</title>
+    <title>個人化巴士儀表板 (最終版)</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -112,7 +112,7 @@
     </div>
 
     <script>
-        // --- 智能巴士儀表板 (最終修正版) ---
+        // --- 智能巴士儀表板 (最終版) ---
         
         const WORK_ARRIVAL_TIME = "10:30";
         const QUERIES = [
@@ -134,9 +134,9 @@
                 panelElementId: 'panel-B',
                 stopId: 'A68A34F71D94FF13', // 荃景圍天橋 (TW153)
                 stationName: '荃景圍天橋 (TW153)',
+                // *** 【最新更新】已隱藏 265M 及 269M ***
                 routes: [
-                     // *** 【重大修正】根據路線資料，將方向修正回 'O' ***
-                    { route: '68M',  dir: 'O', isWorkBus: true, workDays: [6], totalTravelMinutes: 28 }
+                    { route: '68M',  dir: 'O', isWorkBus: true, workDays: [6], totalTravelMinutes: 28 } // 往元朗(西) 方向
                 ],
                 elementIds: { stationName: 'station-name-B', etaList: 'eta-list-B', status: 'status-message-B', updated: 'last-updated-B' }
             }
