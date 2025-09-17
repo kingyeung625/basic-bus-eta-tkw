@@ -101,13 +101,13 @@
 <body>
     <div id="app-wrapper">
         <div id="holiday-message" class="holiday-banner">你放假了！</div>
-        <div id="panel-61m" class="container">
-            <div class="panel-header"> <h1 id="station-name-61m"></h1> <button class="toggle-button" data-target="panel-body-61m">收合</button> </div>
-            <div id="panel-body-61m" class="panel-body"> <ul id="eta-list-61m" class="eta-list"></ul> <div id="status-message-61m" class="status-message"></div> <div id="last-updated-61m" class="last-updated"></div> </div>
+        <div id="panel-A" class="container">
+            <div class="panel-header"> <h1 id="station-name-A"></h1> <button class="toggle-button" data-target="panel-body-A">收合</button> </div>
+            <div id="panel-body-A" class="panel-body"> <ul id="eta-list-A" class="eta-list"></ul> <div id="status-message-A" class="status-message"></div> <div id="last-updated-A" class="last-updated"></div> </div>
         </div>
-        <div id="panel-68m" class="container">
-            <div class="panel-header"> <h1 id="station-name-68m"></h1> <button class="toggle-button" data-target="panel-body-68m">收合</button> </div>
-            <div id="panel-body-68m" class="panel-body"> <ul id="eta-list-68m" class="eta-list"></ul> <div id="status-message-68m" class="status-message"></div> <div id="last-updated-68m" class="last-updated"></div> </div>
+        <div id="panel-B" class="container">
+            <div class="panel-header"> <h1 id="station-name-B"></h1> <button class="toggle-button" data-target="panel-body-B">收合</button> </div>
+            <div id="panel-body-B" class="panel-body"> <ul id="eta-list-B" class="eta-list"></ul> <div id="status-message-B" class="status-message"></div> <div id="last-updated-B" class="last-updated"></div> </div>
         </div>
     </div>
 
@@ -118,24 +118,29 @@
         const WORK_ARRIVAL_TIME = "10:30";
         const QUERIES = [
             {
-                id: '61m',
-                stopId: '10860B611840CF22',
+                id: 'A', // 看板 A
+                panelElementId: 'panel-A',
+                stopId: '10860B611840CF22', // 荃景圍天橋 (TW377)
                 stationName: '荃景圍天橋 (TW377)',
-                routes: [{ route: '61M',  dir: 'O' }],
-                elementIds: { stationName: 'station-name-61m', etaList: 'eta-list-61m', status: 'status-message-61m', updated: 'last-updated-61m' },
-                isWorkBus: true,
-                workDays: [1, 2, 5], // 星期一, 二, 五
-                totalTravelMinutes: 15 // 5分鐘步行 + 10分鐘車程
+                routes: [
+                    // 【通勤規則】應用於此路線
+                    { route: '61M',  dir: 'O', isWorkBus: true, workDays: [1, 2, 5], totalTravelMinutes: 17 /* 7分步行+10分車程 */ },
+                    { route: '58M',  dir: 'O' },
+                    { route: '67M',  dir: 'O' },
+                    { route: '69M',  dir: 'O' }
+                ],
+                elementIds: { stationName: 'station-name-A', etaList: 'eta-list-A', status: 'status-message-A', updated: 'last-updated-A' }
             },
             {
-                id: '68m',
-                stopId: 'A68A34F71D94FF13',
+                id: 'B', // 看板 B
+                panelElementId: 'panel-B',
+                stopId: 'A68A34F71D94FF13', // 荃景圍天橋 (TW153)
                 stationName: '荃景圍天橋 (TW153)',
-                routes: [{ route: '68M',  dir: 'O' }],
-                elementIds: { stationName: 'station-name-68m', etaList: 'eta-list-68m', status: 'status-message-68m', updated: 'last-updated-68m' },
-                isWorkBus: true,
-                workDays: [6], // 星期六
-                totalTravelMinutes: 25 // 7分鐘步行 + 18分鐘車程
+                routes: [
+                     // 【通勤規則】應用於此路線
+                    { route: '68M',  dir: 'I', isWorkBus: true, workDays: [6], totalTravelMinutes: 28 /* 10分步行+18分車程 */ }
+                ],
+                elementIds: { stationName: 'station-name-B', etaList: 'eta-list-B', status: 'status-message-B', updated: 'last-updated-B' }
             }
         ];
         
@@ -154,7 +159,8 @@
                     const url = `https://data.etabus.gov.hk/v1/transport/kmb/eta/${config.stopId}/${r.route}/1`;
                     return fetch(url).then(response => response.ok ? response.json() : null).then(data => {
                         if (!data) return [];
-                        return data.data.filter(eta => eta.dir === r.dir);
+                        // 將通勤規則附加到回傳的數據上，方便後續處理
+                        return data.data.filter(eta => eta.dir === r.dir).map(eta => ({...eta, commuteRule: r}));
                     });
                 });
 
@@ -169,22 +175,27 @@
                     const now = new Date();
                     const today = now.getDay();
 
-                    if (config.isWorkBus && config.workDays.includes(today)) {
-                        const [hours, minutes] = WORK_ARRIVAL_TIME.split(':');
-                        const deadline = new Date(now);
-                        deadline.setHours(hours, minutes, 0, 0);
-                        const mustDepartByTime = new Date(deadline.getTime() - config.totalTravelMinutes * 60 * 1000);
-                        
-                        if (now < mustDepartByTime) {
-                            for (let i = allEtas.length - 1; i >= 0; i--) {
-                                const arrivalTime = new Date(allEtas[i].eta);
-                                if (arrivalTime <= mustDepartByTime) {
-                                    allEtas[i].isSuggested = true;
-                                    break;
+                    // --- 智能建議邏輯 (現在會遍歷所有班次) ---
+                    allEtas.forEach(eta => {
+                        const rule = eta.commuteRule;
+                        if (rule.isWorkBus && rule.workDays.includes(today)) {
+                            const [hours, minutes] = WORK_ARRIVAL_TIME.split(':');
+                            const deadline = new Date(now);
+                            deadline.setHours(hours, minutes, 0, 0);
+                            const mustDepartByTime = new Date(deadline.getTime() - rule.totalTravelMinutes * 60 * 1000);
+                            
+                            if (now < mustDepartByTime) {
+                                // 找出該路線中最晚的一班建議班次
+                                const potentialBuses = allEtas.filter(e => e.route === rule.route && new Date(e.eta) <= mustDepartByTime);
+                                if (potentialBuses.length > 0) {
+                                    const latestBus = potentialBuses[potentialBuses.length - 1];
+                                    if(eta === latestBus) {
+                                        eta.isSuggested = true;
+                                    }
                                 }
                             }
                         }
-                    }
+                    });
 
                     allEtas.forEach(etaEntry => {
                         const arrival = new Date(etaEntry.eta);
@@ -210,14 +221,25 @@
         document.addEventListener('DOMContentLoaded', () => {
             const appWrapper = document.getElementById('app-wrapper');
             const holidayMessage = document.getElementById('holiday-message');
-            const panel61m = document.getElementById('panel-61m');
-            const panel68m = document.getElementById('panel-68m');
+            const panelA = document.getElementById('panel-A');
+            const panelB = document.getElementById('panel-B');
             const today = new Date().getDay();
 
             switch (today) {
-                case 6: appWrapper.insertBefore(panel68m, panel61m); document.getElementById('panel-body-61m').classList.add('collapsed'); break;
-                case 3: case 4: case 0: holidayMessage.style.display = 'block'; document.getElementById('panel-body-61m').classList.add('collapsed'); document.getElementById('panel-body-68m').classList.add('collapsed'); break;
-                case 1: case 2: case 5: default: document.getElementById('panel-body-68m').classList.add('collapsed'); break;
+                case 6: // 星期六
+                    appWrapper.insertBefore(panelB, panelA); // 看板B置頂
+                    document.getElementById('panel-body-A').classList.add('collapsed');
+                    break;
+                case 3: case 4: case 0: // 星期三, 四, 日
+                    holidayMessage.style.display = 'block';
+                    document.getElementById('panel-body-A').classList.add('collapsed');
+                    document.getElementById('panel-body-B').classList.add('collapsed');
+                    break;
+                case 1: case 2: case 5: // 星期一, 二, 五
+                default:
+                    // 保持預設順序，看板A置頂
+                    document.getElementById('panel-body-B').classList.add('collapsed');
+                    break;
             }
             
             document.querySelectorAll('.toggle-button').forEach(button => {
