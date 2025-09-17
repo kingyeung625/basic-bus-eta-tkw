@@ -135,8 +135,8 @@
                 stopId: 'A68A34F71D94FF13', // 荃景圍天橋 (TW153)
                 stationName: '荃景圍天橋 (TW153)',
                 routes: [
-                     // *** 【重大修正】根據 App 1933 的實際數據，將方向修正為 'I' ***
-                    { route: '68M',  dir: 'I', isWorkBus: true, workDays: [6], totalTravelMinutes: 28 }
+                     // *** 【重大修正】根據路線資料，將方向修正回 'O' ***
+                    { route: '68M',  dir: 'O', isWorkBus: true, workDays: [6], totalTravelMinutes: 28 }
                 ],
                 elementIds: { stationName: 'station-name-B', etaList: 'eta-list-B', status: 'status-message-B', updated: 'last-updated-B' }
             }
@@ -218,7 +218,7 @@
 
             switch (today) {
                 case 6: // 星期六
-                    appWrapper.insertBefore(panelB, panelA); // 看板B置頂
+                    appWrapper.insertBefore(panelB, panelA);
                     document.getElementById('panel-body-A').classList.add('collapsed');
                     break;
                 case 3: case 4: case 0: // 星期三, 四, 日
